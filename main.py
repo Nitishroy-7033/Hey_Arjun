@@ -10,6 +10,7 @@ def main():
                 text_to_speech(f"You said: {text}")  # Speak back what you said
     except KeyboardInterrupt:
         print("\n👋 Exiting Jarvis...")
+        text_to_speech("Goodbye! See you later.")
 
 if __name__ == "__main__":
     main()

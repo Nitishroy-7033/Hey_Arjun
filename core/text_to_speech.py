@@ -13,5 +13,6 @@ def text_to_speech(text, rate=150, volume=2.0):
     engine.runAndWait()
 
 if __name__ == "__main__":
-    text_to_speech("Hello, this is a text to speech test.")
+    # text_to_speech("Hello, this is a text to speech test.")
+    text_to_speech("नमस्ते, आप कैसे हैं?")
     
