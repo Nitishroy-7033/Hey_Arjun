@@ -1,13 +1,13 @@
 import pyttsx3
 
-def text_to_speech(text, rate=150, volume=1.0):
+def text_to_speech(text, rate=150, volume=2.0):
     engine = pyttsx3.init()
     engine.setProperty('rate', rate)  # Speed of speech
     engine.setProperty('volume', volume)  # Volume (0.0 to 1.0)
     
     voices = engine.getProperty('voices')
     if voices:
-        engine.setProperty('voice', voices[0].id)  # Change index to change voices
+        engine.setProperty('voice', voices[0].id)  # type: ignore
 
     engine.say(text)
     engine.runAndWait()
