@@ -83,8 +83,24 @@ class OpenRouterChat:
         except Exception as e:
             error_msg = f"Error during API call: {str(e)}"
             logger.error(error_msg)
-            return f"Sorry, I encountered an error: {str(e)}"
-    
+            if "401" in str(e):
+                logger.error("Unauthorized access - invalid API key.")
+                return "Oh no!, I can’t access my secret powers. Maybe my magic key went missing?"
+            elif "403" in str(e):
+                logger.error("Forbidden access - insufficient permissions.")    
+                return "Looks like I’m not allowed in this VIP section of the AI club. Mind checking my access pass (API key)?"
+            elif "429" in str(e):
+                logger.error("Rate limit exceeded.")
+                return "Phew! I’ve been talking too much and hit my daily chat limit. Let’s chill for a bit and try again later."
+            elif "500" in str(e) or "502" in str(e) or "503" in str(e):
+                logger.error("Server error.")
+                return "The AI servers are having a coffee break ☕. Let’s give them a minute to wake up."
+            elif "timeout" in str(e).lower():
+                logger.error("Connection timeout.")
+                return "Hello? Hello?? 📞 …ugh, connection dropped. Can you check the internet and try me again?"
+            else:
+                logger.error("An unexpected error occurred.")
+                return "Well, that didn’t go as planned 🤦. Let’s pretend this never happened and try again in a moment."
 
 
 
