@@ -9,7 +9,8 @@ def main():
         while True:
             text = listen_voice()   # Get voice as text
             if text:
-                response = chat.chat(text)
+                response = chat.chat(text, True)
+                print(f"\n🤖 Jarvis: {response}\n")
                 text_to_speech(response)
                 # text_to_speech(f"You said: {text}")  # Speak back what you said
     except KeyboardInterrupt:
