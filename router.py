@@ -10,12 +10,32 @@ Available actions:
 - tool: when user wants a system action
 
 Tools:
-1. open_app(app_name)
+1. open_app(app_name): Opens applications. Available apps: chrome, firefox, edge, vscode, visual studio, 
+   word, excel, powerpoint, notepad, calculator, file explorer, command prompt, powershell, task manager, 
+   control panel, settings
+   
+2. set_volume(level): Sets system volume (0-100 percent)
+
+3. shutdown_computer(delay_seconds=60): Schedules system shutdown with delay
+
+4. cancel_shutdown(): Cancels a scheduled shutdown
+
+5. sleep_computer(): Puts computer to sleep mode
+
+6. create_folder(folder_name, path=None): Creates a new folder at specified path or desktop
+
+7. lock_computer(): Locks the computer
+
+8. unlock_computer(password): Attempts to unlock with password (for demo only)
+
+9. restart_computer(delay_seconds=60): Schedules system restart with delay
 
 Rules:
 - Always respond in JSON only.
-- If tool needed: {"action": "tool", "tool": "...", "arguments": {...}}
-- If just chat: {"action": "chat", "response": "..."}
+- If tool needed: {"action": "tool", "tool": "tool_name", "arguments": {"arg1": "value1"}}
+- If just chat: {"action": "chat", "response": "your response"}
+- Never include extra text outside the JSON.
+- Parse user intent carefully to select the right tool and arguments.
 """
 
 def decide_action(chat, user_input: str):

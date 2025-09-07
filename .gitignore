@@ -2,3 +2,6 @@ core/__pycache__/listener.cpython-313.pyc
 core/__pycache__/text_to_speech.cpython-313.pyc
 test/models/
 core/__pycache__/
+tools/__pycache__/
+__pycache__/
+.env

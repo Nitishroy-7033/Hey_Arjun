@@ -2,7 +2,11 @@ from core.listener import listen_voice, check_internet_connection
 from core.text_to_speech import text_to_speech
 from core.chat_openrouter import OpenRouterChat
 from router import decide_action
-from tools.system_tools import open_app
+from tools.system_tools import (
+    open_app, set_volume, shutdown_computer, cancel_shutdown,
+    sleep_computer, create_folder, lock_computer, unlock_computer,
+    restart_computer
+)
 import time
 import logging
 import os
@@ -36,6 +40,7 @@ def main():
     try:
         chat = OpenRouterChat()
         print("🤖 Jarvis started! Speak something... (Ctrl+C to stop)")
+        text_to_speech("Jarvis is now online and ready to assist you.")
     except ValueError as e:
         print(f"❌ Error initializing Jarvis: {str(e)}")
         text_to_speech("I couldn't start properly. There might be an issue with my API key.")
@@ -83,16 +88,35 @@ def main():
             
             # Handle Route based on intent
             decision = decide_action(chat, text)
+            
             if decision["action"] == "tool":
                 tool = decision["tool"]
                 args = decision.get("arguments", {})
                 
+                result = "I don't know how to do that yet."
+                
+                # Route to the appropriate tool
                 if tool == "open_app":
                     result = open_app(**args)
-                    print(f"⚡ Tool result: {result}")
-                    text_to_speech(result)
-                else:
-                    text_to_speech("Hmm, I don't know how to do that yet.")
+                elif tool == "set_volume":
+                    result = set_volume(**args)
+                elif tool == "shutdown_computer":
+                    result = shutdown_computer(**args)
+                elif tool == "cancel_shutdown":
+                    result = cancel_shutdown()
+                elif tool == "sleep_computer":
+                    result = sleep_computer()
+                elif tool == "create_folder":
+                    result = create_folder(**args)
+                elif tool == "lock_computer":
+                    result = lock_computer()
+                elif tool == "unlock_computer":
+                    result = unlock_computer(**args)
+                elif tool == "restart_computer":
+                    result = restart_computer(**args)
+                
+                print(f"⚡ Tool result: {result}")
+                text_to_speech(result)
             
             elif decision["action"] == "chat":
                 response = decision["response"]

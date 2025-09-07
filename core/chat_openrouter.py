@@ -57,11 +57,11 @@ class OpenRouterChat:
         try:
             completion = self.client.chat.completions.create(
                 model=self.model,
-                messages=self.conversation_history,
+                messages=self.conversation_history, # type: ignore
                 temperature=temperature,
                 max_tokens=max_tokens,
                 stream=stream
-            )
+            ) # type: ignore
             
             if stream:
                 # Handle streaming response
