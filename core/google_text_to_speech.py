@@ -19,4 +19,4 @@ def google_text_to_speech(text, lang="hi"):
     os.remove(filename)
 
 if __name__ == "__main__":
-    google_text_to_speech("Mai nitish kumar bol raha hoon, aap kaise hain?", lang="hi")
+    google_text_to_speech("Mai nitish kumar bol raha hoon, aap kaise hain?,How are you man", lang="hi")

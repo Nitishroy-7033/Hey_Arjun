@@ -1,4 +1,4 @@
-from core.listener import listen_voice, check_internet_connection
+from core.listener import listen_voice, check_internet_connection, listen_for_wake_word
 from core.text_to_speech import text_to_speech
 from core.chat_openrouter import OpenRouterChat
 from router import decide_action
@@ -39,10 +39,10 @@ def main():
         
     try:
         chat = OpenRouterChat()
-        print("🤖 Jarvis started! Speak something... (Ctrl+C to stop)")
-        text_to_speech("Jarvis is now online and ready to assist you.")
+        print("🤖 Eva started! Say 'Eva' to activate... (Ctrl+C to stop)")
+        text_to_speech("Eva is now online and ready to assist you. Just say Eva to activate me.")
     except ValueError as e:
-        print(f"❌ Error initializing Jarvis: {str(e)}")
+        print(f"❌ Error initializing Eva: {str(e)}")
         text_to_speech("I couldn't start properly. There might be an issue with my API key.")
         return
     except Exception as e:
@@ -52,81 +52,78 @@ def main():
     
     try:
         while True:
-            # Check internet connection first
-            if not check_internet_connection():
-                print("❌ Internet connection lost. Waiting to reconnect...")
-                text_to_speech("Oh nooo! The Wi-Fi ghost stole our internet. Let's wait a bit...")
+            # Listen for wake word
+            if listen_for_wake_word(wake_word="eva"):
+                text_to_speech("Yes, I'm listening")
                 
-                # Wait for internet to come back
-                reconnect_attempts = 0
-                while not check_internet_connection() and reconnect_attempts < 2:
+                # Check internet connection
+                if not check_internet_connection():
+                    print("❌ Internet connection lost. Waiting to reconnect...")
+                    text_to_speech("Oh no! The Wi-Fi ghost stole our internet. Let's wait a bit...")
                     time.sleep(5)
-                    reconnect_attempts += 1
-                    print(f"Reconnection attempt {reconnect_attempts}...")
-                    text_to_speech(f"Still no luck... trying again, attempt {reconnect_attempts}")
+                    continue
+                        
+                # Get voice input
+                text = listen_voice()
                 
-                if check_internet_connection():
-                    print("✅ Internet connection restored!")
-                    text_to_speech("Yesss! The internet genie is back. I'm online again!")
-                else:
-                    print("❌ Could not reconnect to the internet. Please check your connection and restart Jarvis.")
-                    text_to_speech("Hmm… still no internet. Maybe the Wi-Fi went on vacation. Please check it and restart me.")
-                    break
+                # Handle network errors from voice recognition
+                if text == "NETWORK_ERROR":
+                    text_to_speech("I'm having trouble connecting to the internet. Please check your connection.")
+                    time.sleep(5)
+                    continue
                     
-            # Get voice input
-            text = listen_voice()
-            
-            # Handle network errors from voice recognition
-            if text == "NETWORK_ERROR":
-                text_to_speech("Uh oh, I can't hear you properly. Maybe the internet is messing with my ears.")
-                continue
+                if not text:
+                    text_to_speech("I didn't catch that. Please try again.")
+                    continue
                 
-            if not text:  # Handle empty input
-                continue
+                print(f"🗣️ You said: {text}")
                 
-            print(f"🗣️ You said: {text}")
-            
-            # Handle Route based on intent
-            decision = decide_action(chat, text)
-            
-            if decision["action"] == "tool":
-                tool = decision["tool"]
-                args = decision.get("arguments", {})
+                # Handle Route based on intent
+                decision = decide_action(chat, text)
                 
-                result = "I don't know how to do that yet."
+                if decision["action"] == "tool":
+                    tool_name = decision.get("tool")
+                    arguments = decision.get("arguments", {})
+                    
+                    print(f"🔧 Using tool: {tool_name} with args: {arguments}")
+                    
+                    try:
+                        if tool_name == "open_app":
+                            open_app(arguments.get("app_name"))
+                        elif tool_name == "set_volume":
+                            set_volume(arguments.get("level"))
+                        elif tool_name == "shutdown_computer":
+                            shutdown_computer(arguments.get("delay_seconds", 60))
+                        elif tool_name == "cancel_shutdown":
+                            cancel_shutdown()
+                        elif tool_name == "sleep_computer":
+                            sleep_computer()
+                        elif tool_name == "create_folder":
+                            create_folder(arguments.get("folder_name"), arguments.get("path"))
+                        elif tool_name == "lock_computer":
+                            lock_computer()
+                        elif tool_name == "unlock_computer":
+                            unlock_computer(arguments.get("password"))
+                        elif tool_name == "restart_computer":
+                            restart_computer(arguments.get("delay_seconds", 60))
+                        else:
+                            text_to_speech(f"I don't know how to use the tool {tool_name}.")
+                            
+                    except Exception as e:
+                        print(f"❌ Tool execution error: {str(e)}")
+                        text_to_speech(f"I encountered an error while using {tool_name}. {str(e)}")
                 
-                # Route to the appropriate tool
-                if tool == "open_app":
-                    result = open_app(**args)
-                elif tool == "set_volume":
-                    result = set_volume(**args)
-                elif tool == "shutdown_computer":
-                    result = shutdown_computer(**args)
-                elif tool == "cancel_shutdown":
-                    result = cancel_shutdown()
-                elif tool == "sleep_computer":
-                    result = sleep_computer()
-                elif tool == "create_folder":
-                    result = create_folder(**args)
-                elif tool == "lock_computer":
-                    result = lock_computer()
-                elif tool == "unlock_computer":
-                    result = unlock_computer(**args)
-                elif tool == "restart_computer":
-                    result = restart_computer(**args)
-                
-                print(f"⚡ Tool result: {result}")
-                text_to_speech(result)
-            
-            elif decision["action"] == "chat":
-                response = decision["response"]
-                print(f"\n🤖 Jarvis: {response}\n")
-                text_to_speech(response)
+                elif decision["action"] == "chat":
+                    response = decision.get("response", "I'm not sure how to respond to that.")
+                    print(f"🤖 Eva: {response}")
+                    text_to_speech(response)
 
-            time.sleep(0.5)
+                time.sleep(0.5)
+                
+            time.sleep(0.1)  # Small delay to prevent high CPU usage
             
     except KeyboardInterrupt:
-        print("\n👋 Exiting Jarvis...")
+        print("\n👋 Exiting Eva...")
         text_to_speech("Goodbye! See you later.")
 
 if __name__ == "__main__":

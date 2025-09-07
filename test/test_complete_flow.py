@@ -69,9 +69,9 @@ def speak_text(text, lang="hi"):
     os.remove(filename)
 
 
-# --- 5. Jarvis main loop ---
-def jarvis_loop():
-    print("🤖 Jarvis started (Ctrl+C to stop)")
+# --- 5. eva main loop ---
+def eva_loop():
+    print("🤖 eva started (Ctrl+C to stop)")
 
     device, compute_type = get_device()
     model = WhisperModel("small", device=device,
@@ -93,8 +93,8 @@ def jarvis_loop():
             os.remove(audio_file)
 
     except KeyboardInterrupt:
-        print("\n👋 Jarvis stopped")
+        print("\n👋 eva stopped")
 
 
 if __name__ == "__main__":
-    jarvis_loop()
+    eva_loop()

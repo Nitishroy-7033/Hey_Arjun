@@ -198,4 +198,4 @@ if __name__ == "__main__":
     # Test some functions
     print(open_app("notepad"))
     print(set_volume(50))
-    print(create_folder("JarvisTest"))
+    print(create_folder("evaTestfolder"))
