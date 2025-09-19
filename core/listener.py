@@ -8,11 +8,8 @@ recognizer = sr.Recognizer()
 mic = sr.Microphone()
 
 def initialize_microphone():
-    """Initialize the microphone and adjust for ambient noise."""
     with mic as source:
-        print("🎤 Adjusting for ambient noise, please wait...")
-        recognizer.adjust_for_ambient_noise(source, duration=2)
-    print("✅ Microphone initialized and ready.")
+        recognizer.adjust_for_ambient_noise(source, duration=0)
 
 
 

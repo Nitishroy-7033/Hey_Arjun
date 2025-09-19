@@ -27,7 +27,6 @@ You are Eva, a friendly Indian AI voice assistant.
 class OpenRouterChat:
     def __init__(self, model: str = DEFAULT_MODEL, system_prompt: str = DEFAULT_SYSTEM_PROMPT):
         """Initialize the OpenRouter chat client.
-        
         Args:
             model: The model to use for chat
             system_prompt: The system prompt to use
