@@ -1,37 +1,22 @@
-import os
 import logging
+import os
+import sys
 from typing import List, Dict, Optional, Any
+
+# Add project root to sys.path to allow for package-level imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from openai import OpenAI
-from dotenv import load_dotenv
+from configs.config import Configs
+from configs.messages import ErrorMessages
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
-api_key = os.getenv("OPENROUTER_API_KEY")
-DEFAULT_MODEL = "deepseek/deepseek-chat-v3.1:free"
-DEFAULT_SYSTEM_PROMPT = """
-You are Eva, a friendly Indian AI voice assistant.
-- Speak in a natural, conversational desi style — polite, warm, and approachable.
-- Keep answers short and clear (1–3 sentences), like you’re talking to a friend.
-- Use simple words and avoid over-technical explanations unless the user asks.
-- Add a touch of Indian flavor where it feels natural (e.g., “Arre”, “Boss”, “Yaar”, “Namaste”) but don’t overdo it.
-- When sharing facts, explain them simply, as if you’re helping someone over chai.
-- If you don’t know something, admit it honestly, and suggest a next step (“Maybe check once online?”).
-- Always sound supportive, practical, and down-to-earth.
-"""
-
-
 class OpenRouterChat:
-    def __init__(self, model: str = DEFAULT_MODEL, system_prompt: str = DEFAULT_SYSTEM_PROMPT):
-        """Initialize the OpenRouter chat client.
-        Args:
-            model: The model to use for chat
-            system_prompt: The system prompt to use
-        """
-        if not api_key:
+    def __init__(self, model: str = Configs.ASSISTANT_MODEL, system_prompt: str = Configs.SYSTEM_PROMPT):
+        if not Configs.OPENROUTER_API_KEY:
             raise ValueError("OPENROUTER_API_KEY is not set in environment variables.")
         
         self.model = model
@@ -42,8 +27,8 @@ class OpenRouterChat:
         
         try:
             self.client = OpenAI(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=api_key
+                base_url=Configs.OPENROUTER_API_URL,
+                api_key=Configs.OPENROUTER_API_KEY
             )
             logger.info(f"Initialized OpenRouter client with model: {model}")
         except Exception as e:
@@ -86,7 +71,7 @@ class OpenRouterChat:
             logger.error(error_msg)
             if "401" in str(e):
                 logger.error("Unauthorized access - invalid API key.")
-                return "Oh no!, I can’t access my secret powers. Maybe my magic key went missing?"
+                return ErrorMessages.UNAUTHORIZED
             elif "403" in str(e):
                 logger.error("Forbidden access - insufficient permissions.")    
                 return "Looks like I’m not allowed in this VIP section of the AI club. Mind checking my access pass (API key)?"
@@ -95,10 +80,10 @@ class OpenRouterChat:
                 return "Phew! I’ve been talking too much and hit my daily chat limit. Let’s chill for a bit and try again later."
             elif "500" in str(e) or "502" in str(e) or "503" in str(e):
                 logger.error("Server error.")
-                return "The AI servers are having a coffee break ☕. Let’s give them a minute to wake up."
+                return ErrorMessages.SERVER_ERROR
             elif "timeout" in str(e).lower():
                 logger.error("Connection timeout.")
-                return "Hello? Hello?? 📞 …ugh, connection dropped. Can you check the internet and try me again?"
+                return ErrorMessages.TIMEOUT
             else:
                 logger.error("An unexpected error occurred.")
                 return "Well, that didn’t go as planned 🤦. Let’s pretend this never happened and try again in a moment."

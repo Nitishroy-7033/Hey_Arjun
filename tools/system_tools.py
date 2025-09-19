@@ -6,6 +6,151 @@ from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 import math
 import time
+from typing import Optional, Dict, Any, Callable
+
+# Import configuration
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from configs.constant import Constants
+from configs.messages import SuccessMessages, ErrorMessages
+
+
+class SystemToolManager:
+    """Centralized manager for all system tools"""
+    
+    def __init__(self):
+        self.tools: Dict[str, Callable] = {
+            Constants.TOOL_OPEN_APP: self.open_app,
+            Constants.TOOL_SET_VOLUME: self.set_volume,
+            Constants.TOOL_SHUTDOWN_COMPUTER: self.shutdown_computer,
+            Constants.TOOL_CANCEL_SHUTDOWN: self.cancel_shutdown,
+            Constants.TOOL_SLEEP_COMPUTER: self.sleep_computer,
+            Constants.TOOL_CREATE_FOLDER: self.create_folder,
+            Constants.TOOL_LOCK_COMPUTER: self.lock_computer,
+            Constants.TOOL_UNLOCK_COMPUTER: self.unlock_computer,
+            Constants.TOOL_RESTART_COMPUTER: self.restart_computer,
+        }
+    
+    def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
+        """Execute a system tool with given arguments"""
+        if tool_name not in self.tools:
+            return ErrorMessages.TOOL_UNKNOWN.format(tool_name=tool_name)
+        
+        try:
+            return self.tools[tool_name](**arguments)
+        except Exception as e:
+            return ErrorMessages.TOOL_EXECUTION_ERROR.format(
+                tool_name=tool_name, 
+                error=str(e)
+            )
+    
+    def open_app(self, app_name: str) -> str:
+        """Open an application using the system's default method."""
+        if app_name.lower() in Constants.APP_PATHS:
+            path = Constants.APP_PATHS[app_name.lower()]
+            if "{username}" in path:
+                path = path.format(username=os.getenv('USERNAME', ''))
+            
+            try:
+                subprocess.Popen(path)
+                return SuccessMessages.APP_OPENED.format(app_name=app_name)
+            except Exception as e:
+                return f"Oops, I couldn't open {app_name}. Error: {e}"
+        else:
+            return f"Sorry, I don't know how to open {app_name}."
+    
+    def set_volume(self, level: int) -> str:
+        """Set system volume to a specific percentage."""
+        try:
+            if not 0 <= level <= 100:
+                return f"Volume level must be between 0 and 100, got {level}"
+                
+            devices = AudioUtilities.GetSpeakers()
+            interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+            volume = cast(interface, POINTER(IAudioEndpointVolume))
+            
+            # Convert percentage to logarithmic scale used by Windows
+            if level == 0:
+                volume_scalar = -65.25
+            else:
+                volume_scalar = -65.25 * (1 - (level / 100)) ** 0.5
+                
+            volume.SetMasterVolumeLevel(volume_scalar, None)
+            return SuccessMessages.VOLUME_SET.format(level=level)
+        except Exception as e:
+            return f"Failed to set volume: {str(e)}"
+    
+    def shutdown_computer(self, delay_seconds: int = Constants.DEFAULT_SHUTDOWN_DELAY) -> str:
+        """Shutdown the computer with a delay."""
+        try:
+            subprocess.Popen(f"shutdown /s /t {delay_seconds}", shell=True)
+            return SuccessMessages.COMPUTER_SHUTDOWN.format(delay=delay_seconds)
+        except Exception as e:
+            return f"Failed to initiate shutdown: {str(e)}"
+    
+    def cancel_shutdown(self) -> str:
+        """Cancel a scheduled shutdown."""
+        try:
+            subprocess.Popen("shutdown /a", shell=True)
+            return SuccessMessages.SHUTDOWN_CANCELLED
+        except Exception as e:
+            return f"Failed to cancel shutdown: {str(e)}"
+    
+    def sleep_computer(self) -> str:
+        """Put the computer to sleep."""
+        try:
+            subprocess.Popen("rundll32.exe powrprof.dll,SetSuspendState 0,1,0", shell=True)
+            return SuccessMessages.COMPUTER_SLEEP
+        except Exception as e:
+            return f"Failed to sleep computer: {str(e)}"
+    
+    def create_folder(self, folder_name: str, path: str = None) -> str:
+        """Create a new folder at the specified path or desktop."""
+        try:
+            if not path:
+                path = os.path.join(os.path.expanduser("~"), "Desktop")
+                
+            folder_path = os.path.join(path, folder_name)
+            
+            if os.path.exists(folder_path):
+                return f"Folder '{folder_name}' already exists at {path}"
+                
+            os.makedirs(folder_path)
+            return SuccessMessages.FOLDER_CREATED.format(
+                folder_name=folder_name, 
+                path=path
+            )
+        except Exception as e:
+            return f"Failed to create folder: {str(e)}"
+    
+    def lock_computer(self) -> str:
+        """Lock the computer."""
+        try:
+            ctypes.windll.user32.LockWorkStation()
+            return SuccessMessages.COMPUTER_LOCKED
+        except Exception as e:
+            return f"Failed to lock computer: {str(e)}"
+    
+    def unlock_computer(self, password: str) -> str:
+        """Attempt to unlock the computer with password."""
+        # Security note: This is for demonstration only
+        CORRECT_PASSWORD = "7033"
+        
+        if password == CORRECT_PASSWORD:
+            return "Password accepted. Note: For security reasons, actual unlocking requires system integration."
+        else:
+            return "Incorrect password. Access denied."
+    
+    def restart_computer(self, delay_seconds: int = Constants.DEFAULT_RESTART_DELAY) -> str:
+        """Restart the computer with a delay."""
+        try:
+            subprocess.Popen(f"shutdown /r /t {delay_seconds}", shell=True)
+            return SuccessMessages.COMPUTER_RESTART.format(delay=delay_seconds)
+        except Exception as e:
+            return f"Failed to initiate restart: {str(e)}"
+
+
+# Legacy functions for backward compatibility
 
 def open_app(app_name: str) -> str:
     """Open an application using the system's default method.

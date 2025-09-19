@@ -1,116 +1,188 @@
-from core.listener import listen_voice, check_internet_connection, listen_for_wake_word
-from core.text_to_speech import text_to_speech
-from core.chat_openrouter import OpenRouterChat
-from configs.config import Configs
-from router import decide_action
-from tools.system_tools import (
-    open_app, set_volume, shutdown_computer, cancel_shutdown,
-    sleep_computer, create_folder, lock_computer, unlock_computer,
-    restart_computer
-)
+#!/usr/bin/env python3
+"""
+Eva Voice Assistant - Main Application
+A voice-controlled AI assistant with system integration capabilities.
+"""
+
 import time
 import logging
 import os
+from typing import Optional, Dict, Any
+
+# Core imports
+from core.listener import listen_voice, check_internet_connection, listen_for_wake_word
+from core.text_to_speech import text_to_speech
+from core.chat_openrouter import OpenRouterChat
+
+# Configuration imports
+from configs.config import Configs
+from configs.constant import Constants
+from configs.messages import ErrorMessages, InfoMessages, DefaultResponses
+
+# Router and tools
+from router import decide_action
+from tools.system_tools import SystemToolManager
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
-configs = Configs()
-def check_api_key():
-    from dotenv import load_dotenv
-    load_dotenv()
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        return False
+
+
+class VoiceAssistant:
+    """Main Voice Assistant Class"""
+    
+    def __init__(self):
+        self.configs = Configs()
+        self.chat: Optional[OpenRouterChat] = None
+        self.tool_manager = SystemToolManager()
         
-    return True
+    def check_api_key(self) -> bool:
+        """Check if OpenRouter API key is valid"""
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+            api_key = os.getenv("OPENROUTER_API_KEY")
+            return bool(api_key)
+        except Exception as e:
+            logger.error(f"Error checking API key: {e}")
+            return False
+    
+    def initialize_chat(self) -> bool:
+        """Initialize the chat system"""
+        try:
+            self.chat = OpenRouterChat()
+            return True
+        except ValueError:
+            text_to_speech(ErrorMessages.API_KEY_ISSUE)
+            return False
+        except Exception as e:
+            logger.error(f"Chat initialization error: {e}")
+            text_to_speech(ErrorMessages.STARTUP_ERROR)
+            return False
+    
+    def announce_startup(self):
+        """Announce that the assistant is ready"""
+        text_to_speech(
+            InfoMessages.ASSISTANT_STARTING.format(
+                assistant_name=self.configs.ASSISTANT_NAME
+            )
+        )
+        text_to_speech(
+            InfoMessages.ASSISTANT_READY.format(
+                assistant_name=self.configs.ASSISTANT_NAME
+            )
+        )
+    
+    def handle_network_error(self):
+        """Handle network connectivity issues"""
+        text_to_speech(InfoMessages.WAITING_FOR_NETWORK)
+        time.sleep(Constants.NETWORK_ERROR_DELAY)
+    
+    def handle_voice_input(self) -> Optional[str]:
+        """Get and validate voice input"""
+        text = listen_voice()
+        
+        if text == Constants.NETWORK_ERROR:
+            text_to_speech(ErrorMessages.NETWORK_CONNECTION_ERROR)
+            time.sleep(Constants.NETWORK_ERROR_DELAY)
+            return None
+            
+        if not text:
+            text_to_speech(ErrorMessages.AUDIO_NOT_UNDERSTOOD)
+            return None
+            
+        return text
+    
+    def process_user_input(self, user_input: str):
+        """Process user input and decide on action"""
+        if not self.chat:
+            text_to_speech(ErrorMessages.STARTUP_ERROR)
+            return
+            
+        decision = decide_action(self.chat, user_input)
+        
+        if decision["action"] == Constants.ACTION_TOOL:
+            self.handle_tool_action(decision)
+        elif decision["action"] == Constants.ACTION_CHAT:
+            self.handle_chat_response(decision)
+    
+    def handle_tool_action(self, decision: Dict[str, Any]):
+        """Handle tool-based actions"""
+        tool_name = decision.get("tool")
+        arguments = decision.get("arguments", {})
+        
+        try:
+            result = self.tool_manager.execute_tool(tool_name, arguments)
+            if result:
+                text_to_speech(result)
+        except Exception as e:
+            logger.error(f"Tool execution error: {e}")
+            text_to_speech(
+                ErrorMessages.TOOL_EXECUTION_ERROR.format(
+                    tool_name=tool_name, 
+                    error=str(e)
+                )
+            )
+    
+    def handle_chat_response(self, decision: Dict[str, Any]):
+        """Handle chat-based responses"""
+        response = decision.get("response", DefaultResponses.FALLBACK_RESPONSE)
+        text_to_speech(response)
+    
+    def run_main_loop(self):
+        """Main application loop"""
+        try:
+            while True:
+                # Listen for wake word
+                if listen_for_wake_word(wake_word=self.configs.ASSISTANT_NAME.lower()):
+                    text_to_speech(InfoMessages.LISTENING)
+                    
+                    # Check internet connection
+                    if not check_internet_connection():
+                        self.handle_network_error()
+                        continue
+                    
+                    # Get and process voice input
+                    user_input = self.handle_voice_input()
+                    if user_input:
+                        self.process_user_input(user_input)
+                    
+                    time.sleep(Constants.POST_ACTION_DELAY)
+                
+                time.sleep(Constants.DEFAULT_SLEEP_DELAY)
+                
+        except KeyboardInterrupt:
+            text_to_speech(InfoMessages.GOODBYE_MESSAGE)
+            logger.info("Application terminated by user")
+    
+    def start(self):
+        """Start the voice assistant"""
+        logger.info("Starting Eva Voice Assistant...")
+        
+        # Check API key
+        if not self.check_api_key():
+            text_to_speech(ErrorMessages.API_KEY_MISSING)
+            return
+        
+        # Initialize chat system
+        if not self.initialize_chat():
+            return
+        
+        # Announce startup
+        self.announce_startup()
+        
+        # Start main loop
+        self.run_main_loop()
+
 
 def main():
-    # First check if API key seems valid
-    if not check_api_key():
-        text_to_speech("I can't start because my API key is missing or invalid. Please check the dot env file.")
-        return
-        
-    try:
-        chat = OpenRouterChat()
-        text_to_speech(f"{configs.ASSISTANT_NAME} is just a moment...")
-        text_to_speech(f"now online and ready to assist you. Just say {configs.ASSISTANT_NAME} to activate me.")
-    except ValueError as e:
-        text_to_speech("I couldn't start properly. There might be an issue with my API key.")
-        return
-    except Exception as e:
-        text_to_speech("Something went wrong during startup. Please check the logs.")
-        return
-    
-    try:
-        while True:
-            # Listen for wake word
-            if listen_for_wake_word(wake_word=configs.ASSISTANT_NAME.lower()):
-                text_to_speech("Yes, I'm listening")
-                
-                # Check internet connection
-                if not check_internet_connection():
-                    text_to_speech("Oh no! The Wi-Fi ghost stole our internet. Let's wait a bit...")
-                    time.sleep(5)
-                    continue
-                        
-                # Get voice input
-                text = listen_voice()
-                
-                # Handle network errors from voice recognition
-                if text == "NETWORK_ERROR":
-                    text_to_speech("I'm having trouble connecting to the internet. Please check your connection.")
-                    time.sleep(5)
-                    continue
-                    
-                if not text:
-                    text_to_speech("I didn't catch that. Please try again.")
-                    continue
-                
-                
-                # Handle Route based on intent
-                decision = decide_action(chat, text)
-                
-                if decision["action"] == "tool":
-                    tool_name = decision.get("tool")
-                    arguments = decision.get("arguments", {})
-                    
-                    
-                    try:
-                        if tool_name == "open_app":
-                            open_app(arguments.get("app_name"))
-                        elif tool_name == "set_volume":
-                            set_volume(arguments.get("level"))
-                        elif tool_name == "shutdown_computer":
-                            shutdown_computer(arguments.get("delay_seconds", 60))
-                        elif tool_name == "cancel_shutdown":
-                            cancel_shutdown()
-                        elif tool_name == "sleep_computer":
-                            sleep_computer()
-                        elif tool_name == "create_folder":
-                            create_folder(arguments.get("folder_name"), arguments.get("path"))
-                        elif tool_name == "lock_computer":
-                            lock_computer()
-                        elif tool_name == "unlock_computer":
-                            unlock_computer(arguments.get("password"))
-                        elif tool_name == "restart_computer":
-                            restart_computer(arguments.get("delay_seconds", 60))
-                        else:
-                            text_to_speech(f"I don't know how to use the tool {tool_name}.")
-                            
-                    except Exception as e:
-                        text_to_speech(f"I encountered an error while using {tool_name}. {str(e)}")
-                
-                elif decision["action"] == "chat":
-                    response = decision.get("response", "I'm not sure how to respond to that.")
-                    text_to_speech(response)
+    """Main entry point"""
+    assistant = VoiceAssistant()
+    assistant.start()
 
-                time.sleep(0.5)
-                
-            time.sleep(0.1)  # Small delay to prevent high CPU usage
-            
-    except KeyboardInterrupt:
-        text_to_speech("Goodbye! See you later.")
 
 if __name__ == "__main__":
     main()
